@@ -1,8 +1,6 @@
 # pfSense Country-Based Geo-Blocking with pfBlockerNG
 
-![Hits](https://hits.sh/github.com/NX1X/pfsense-geo-block.svg)
-
-![Visitors](https://visitor-badge.laobi.icu/badge?page_id=NX1X.pfsense-geo-block)
+![Hits](https://hits.sh/github.com/NX1X/pfsense-geo-block.svg) ![Visitors](https://visitor-badge.laobi.icu/badge?page_id=NX1X.pfsense-geo-block)
 
 
 Automatically block ALL countries using pfBlockerNG with daily updates and Slack notifications.
@@ -251,3 +249,4 @@ MIT License - Free to use and modify
 **Last Updated:** November 2025
 
 **Tested On:** pfSense 2.8.1
+
