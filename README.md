@@ -16,7 +16,7 @@ Automatically block ALL countries using pfBlockerNG with daily updates and Slack
 
 ## Requirements
 
-- pfSense 2.8+ (Might work will older versions - not tested)
+- pfSense 2.8+ (Might work on older versions - not tested)
 - pfBlockerNG package installed
 - 50MB free disk space
 - Internet connectivity for updates
@@ -249,5 +249,6 @@ MIT License - Free to use and modify
 **Last Updated:** November 2025
 
 **Tested On:** pfSense 2.8.1
+
 
 
