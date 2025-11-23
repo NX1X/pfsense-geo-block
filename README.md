@@ -253,16 +253,6 @@ Pull requests welcome! Please:
 2. Update documentation
 3. Follow existing code style
 
-
-## Resources & Support
-
-- [GitHub Repository](https://github.com/NX1X/pfsense-geo-block)
-- [Documentation](https://docs.nx1xlab.dev/)
-- [Blog](https://blog.nx1xlab.dev/)
-- [NXTools](https://www.nx1xlab.dev/nxtools)
-- [Support My Work](https://buymeacoffee.com/nx1x)
-- [Website](https://www.nx1xlab.dev/)
-
 ## License
 
 MIT License - Free to use and modify
