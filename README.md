@@ -2,8 +2,33 @@
 
 ![Visitors](https://visitor-badge.laobi.icu/badge?page_id=NX1X.pfsense-geo-block)
 
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-black)](https://github.com/NX1X/pfsense-geo-block)
+[![Docs](https://img.shields.io/badge/Docs-Documentation-blue)](https://docs.nx1xlab.dev/)
+[![Blog](https://img.shields.io/badge/Blog-Articles-green)](https://blog.nx1xlab.dev/)
+[![NXTools](https://img.shields.io/badge/NXTools-Tools-orange)](https://www.nx1xlab.dev/nxtools)
+[![Support](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Support-yellow)](https://buymeacoffee.com/nx1x)
+[![Website](https://img.shields.io/badge/Website-nx1xlab.dev-purple)](https://www.nx1xlab.dev/)
 
 Automatically block ALL countries using pfBlockerNG with daily updates and Slack notifications.
+
+## TL;DR
+
+```bash
+# 1. Install script
+curl -o /usr/local/bin/update-all-countries.sh https://raw.githubusercontent.com/NX1X/pfsense-geo-block/main/update-all-countries.sh
+chmod 750 /usr/local/bin/update-all-countries.sh
+
+# 2. Run it
+sh /usr/local/bin/update-all-countries.sh
+
+# 3. Configure pfBlockerNG
+# Firewall > pfBlockerNG > IP > IPv4 > Add
+# Source: /var/db/pfblockerng/original/all_countries_combined.txt
+# Action: Deny Inbound
+
+# 4. Set up daily cron at 3 AM
+# System > Cron > Add > Command: /usr/local/bin/update-all-countries.sh
+```
 
 ## Features
 
@@ -227,6 +252,16 @@ Pull requests welcome! Please:
 1. Test thoroughly on pfSense 2.7+/2.8+
 2. Update documentation
 3. Follow existing code style
+
+
+## Resources & Support
+
+- [GitHub Repository](https://github.com/NX1X/pfsense-geo-block)
+- [Documentation](https://docs.nx1xlab.dev/)
+- [Blog](https://blog.nx1xlab.dev/)
+- [NXTools](https://www.nx1xlab.dev/nxtools)
+- [Support My Work](https://buymeacoffee.com/nx1x)
+- [Website](https://www.nx1xlab.dev/)
 
 ## License
 
