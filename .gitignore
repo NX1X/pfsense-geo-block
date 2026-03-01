@@ -9,11 +9,8 @@ desktop.ini
 *~
 *.bak
 
-# VSCode (keep settings.json — it has project-level eol/linter config)
-.vscode/launch.json
-.vscode/tasks.json
-.vscode/*.code-workspace
-.vscode/extensions.json
+# VSCode — EOL is handled by .gitattributes, no need for editor config in repo
+.vscode/
 
 # Logs and temp files (these live on pfSense, not in the repo)
 *.log
