@@ -1,0 +1,7 @@
+{
+    "snyk.advanced.autoSelectOrganization": true,
+    "files.eol": "\n",
+    "[shellscript]": {
+        "files.eol": "\n"
+    }
+}
