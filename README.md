@@ -5,275 +5,70 @@
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-black)](https://github.com/NX1X/pfsense-geo-block)
 [![Docs](https://img.shields.io/badge/Docs-Documentation-blue)](https://docs.nx1xlab.dev/)
 [![Blog](https://img.shields.io/badge/Blog-Articles-green)](https://blog.nx1xlab.dev/)
-[![NXTools](https://img.shields.io/badge/NXTools-Tools-orange)](https://www.nx1xlab.dev/nxtools)
 [![Support](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Support-yellow)](https://buymeacoffee.com/nx1x)
 [![Website](https://img.shields.io/badge/Website-nx1xlab.dev-purple)](https://www.nx1xlab.dev/)
 
-Automatically block ALL countries using pfBlockerNG with daily updates and Slack notifications.
-
-## TL;DR
-
-```bash
-# 1. Install script
-curl -o /usr/local/bin/update-all-countries.sh https://raw.githubusercontent.com/NX1X/pfsense-geo-block/main/update-all-countries.sh
-chmod 750 /usr/local/bin/update-all-countries.sh
-
-# 2. Run it
-sh /usr/local/bin/update-all-countries.sh
-
-# 3. Configure pfBlockerNG
-# Firewall > pfBlockerNG > IP > IPv4 > Add
-# Source: /var/db/pfblockerng/original/all_countries_combined.txt
-# Action: Deny Inbound
-
-# 4. Set up daily cron at 3 AM
-# System > Cron > Add > Command: /usr/local/bin/update-all-countries.sh
-```
+Block all countries (IPv4 + IPv6) using pfBlockerNG, with daily Slack reports showing per-interface breakdowns, country attribution, and port scanner detection.
 
 ## Features
 
-- ✅ Blocks 174,000+ IP ranges from 250+ countries
-- ✅ Daily automatic updates at 3 AM
-- ✅ Slack notifications on updates
-- ✅ Uses IPDeny aggregated country lists
-- ✅ ~2.6MB combined blocklist
-- ✅ Allows outbound traffic (internet access maintained)
+- Blocks 175,000+ IPv4 ranges and 85,000+ IPv6 ranges from 250+ countries
+- Daily Slack report: per-interface/direction breakdown, top countries, port scanners
+- Country lookup via MaxMind GeoLite2 (bundled with pfBlockerNG)
+- Smart context: shows destination country for outbound LAN blocks, source country for inbound WAN attacks
+- Port scanner detection: flags external IPs probing 4+ distinct ports
+- Works alongside pfBlockerNG threat intel feeds (CINS, Emerging Threats, BlockListDE, ISC)
+- Slack notifications on update success or failure
 
-## Requirements
+## Scripts
 
-- pfSense 2.8+ (Might work on older versions - not tested)
-- pfBlockerNG package installed
-- 50MB free disk space
-- Internet connectivity for updates
+| Script | Purpose | Default Schedule |
+|--------|---------|-----------------|
+| `update-all-countries.sh` | Downloads IPv4 + IPv6 country IP lists and updates the blocklist | Daily at 7 AM |
+| `geo-block-report.sh` | Parses firewall logs and sends a daily block summary to Slack | Daily at 8 AM |
 
 ## Quick Start
 
-### 1. Install the Update Script
 ```bash
-# Download and install
-curl -o /usr/local/bin/update-all-countries.sh https://raw.githubusercontent.com/NX1X/pfsense-geo-block/main/update-all-countries.sh
+# 1. Download scripts
+mkdir -p /root/scripts
+curl -o /root/scripts/update-all-countries.sh https://raw.githubusercontent.com/NX1X/pfsense-geo-block/main/update-all-countries.sh
+curl -o /root/scripts/geo-block-report.sh https://raw.githubusercontent.com/NX1X/pfsense-geo-block/main/geo-block-report.sh
+chmod 750 /root/scripts/*.sh
 
-# Set permissions
-chmod 750 /usr/local/bin/update-all-countries.sh
+# 2. Set up Slack webhook (optional)
+echo 'WEBHOOK="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"' > /usr/local/etc/geoblock-webhook.conf
+chmod 600 /usr/local/etc/geoblock-webhook.conf
 
-# Edit to add your Slack webhook (optional)
-nano /usr/local/bin/update-all-countries.sh
+# 3. Run initial update
+sh /root/scripts/update-all-countries.sh
+
+# 4. Configure pfBlockerNG — see GUIDE.md
+
+# 5. Set up cron jobs (System > Cron in pfSense UI)
+#    7 AM → /root/scripts/update-all-countries.sh
+#    8 AM → /root/scripts/geo-block-report.sh
 ```
 
-### 2. Run Initial Update
-```bash
-sh /usr/local/bin/update-all-countries.sh
-```
-### Check logs
-tail -3 /var/log/pfblockerng/all_countries.log
+## Documentation
 
+- **[Setup Guide](GUIDE.md)** — full installation, pfBlockerNG IPv4/IPv6 rules, threat feeds, cron setup, troubleshooting
+- **[Changelog](CHANGELOG.md)** — version history
 
-Verify file created:
-```bash
-wc -l /var/db/pfblockerng/original/all_countries_combined.txt
-# Should show ~174,206 lines
-```
+## Requirements
 
-### 3. Configure pfBlockerNG
-
-**Go to: Firewall > pfBlockerNG > IP > IPv4**
-
-- Click **"+ Add"**
-- **Name:** `Block_All_Countries`
-- **Action:** `Deny Inbound`
-- **State:** `ON`
-- **Update Frequency:** `Never` (script handles updates)
-
-**IPv4 Source Definitions:**
-- Click **"+ Add"**
-- **Format:** `Auto`
-- **Source:** `/var/db/pfblockerng/original/all_countries_combined.txt`
-
-**Click Save**
-
-### 4. Apply Configuration
-
-**Go to: Firewall > pfBlockerNG > Update**
-
-Click **"Reload"**
-
-Wait for completion. Verify:
-```
-✅ allcountries_v4: 173,448 IPs loaded
-✅ Total blocking: 190,000+ IPs
-```
-
-### 5. Set Up Daily Cron Job
-
-**Go to: System > Cron**
-
-Click **"+ Add"**
-
-- **Minute:** `0`
-- **Hour:** `3`
-- **Day:** `*`
-- **Month:** `*`
-- **Weekday:** `*`
-- **User:** `root`
-- **Command:** `/usr/local/bin/update-all-countries.sh`
-
-Click **Save**
-
-## Configuration
-
-### Slack Notifications (Optional)
-
-**Create a new app in slack: [https://api.slack.com/apps]**
-**Go to "Incoming Webhooks" and create a webhook URL"**
-**Copy the Webhook URL and paste in the script**
-
-Edit the script:
-```bash
-nano /usr/local/bin/update-all-countries.sh
-```
-
-Update webhook URL:
-```sh
-WEBHOOK="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
-```
-
-### Custom Update Schedule
-
-Modify cron job timing as needed. Default is 3 AM daily.
-
-### Whitelist Your Country
-
-If you need to allow specific countries:
-
-**Option 1:** Edit the script to exclude countries
-```sh
-# In the script, filter out specific countries:
-curl -s "$BASE_URL/MD5SUM" | awk '{print $2}' | grep '\.zone$' | grep -v 'us-aggregated\|il-aggregated' | \
-```
-
-**Option 2:** Create separate pfBlockerNG rule with "Permit" action for your country
-
-## Monitoring
-
-### View Blocked Traffic
-
-**Go to: Firewall > pfBlockerNG > Reports > IP Block Stats**
-
-Shows real-time blocks with:
-- Source IP and country
-- Timestamp
-- Blocked rule
-
-### Dashboard Widget
-
-**Go to: Dashboard**
-- Click **"+ Add Widget"**
-- Select **pfBlockerNG**
-
-### Reports
-
-
-## Troubleshooting
-
-### Script Not Creating File
-
-Check permissions:
-```bash
-ls -la /usr/local/bin/update-all-countries.sh
-# Should be: -rwxr-x--- root wheel
-```
-
-Run manually to see errors:
-```bash
-sh -x /usr/local/bin/update-all-countries.sh
-```
-
-### pfBlockerNG Shows "No IPs found"
-
-Verify file exists and has content:
-```bash
-ls -lh /var/db/pfblockerng/original/all_countries_combined.txt
-head -5 /var/db/pfblockerng/original/all_countries_combined.txt
-```
-
-Check source path in rule (must be exact):
-```
-/var/db/pfblockerng/original/all_countries_combined.txt
-```
-
-## Performance Impact
-
-- **CPU:** Minimal (<1% during update)
-- **RAM:** ~50MB during update
-- **Disk:** 2.6MB for blocklist
-- **Network:** ~5MB download during update
-- **Update Time:** 1-2 minutes
-
-## Data Source
-
-- **Provider:** [IPDeny.com](https://www.ipdeny.com/)
-- **Update Frequency:** Daily
-- **Format:** Aggregated CIDR blocks per country
-- **License:** Free for personal and commercial use
-
-## Security Notes
-
-⚠️ **Important:**
-- This blocks ALL inbound traffic from all countries
-- Outbound traffic (your browsing) still works
-- VPN traffic may be affected
-- Some CDNs use IPs from multiple countries
-
-**Whitelist critical services:**
-- Your VPN provider IPs
-- Business partner IPs
-- Monitoring services
-
-## FAQ
-
-**Q: Will this block my internet access?**
-A: No, it only blocks inbound connections. You can still browse normally.
-
-**Q: How do I allow one specific country?**
-A: Create a separate pfBlockerNG rule with "Permit Inbound" for that country above this rule.
-
-**Q: Can I block continents instead of all countries?**
-A: Yes, manually specify continent country codes in the script filter.
-
-**Q: Does this work with IPv6?**
-A: This script handles IPv4 only. IPv6 requires separate configuration.
-
-**Q: How much does this protect me?**
-A: Blocks ~90% of automated attacks. Use with other security measures.
-
-## Contributing
-
-Pull requests welcome! Please:
-1. Test thoroughly on pfSense 2.7+/2.8+
-2. Update documentation
-3. Follow existing code style
+- pfSense 2.7+ (tested on 2.8.0)
+- pfBlockerNG-devel installed
+- Internet connectivity for updates
 
 ## License
 
-MIT License - Free to use and modify
+MIT — Free to use and modify
 
 ## Credits
 
-- IPDeny.com for country IP data
-- pfBlockerNG team for the excellent package
-- pfSense community
+- [IPDeny.com](https://www.ipdeny.com/) for country IP data
+- pfBlockerNG team
+- MaxMind for GeoLite2 database
 
-## Support
-
-- Issues: GitHub Issues
-- pfSense Forum: [pfBlockerNG section](https://forum.netgate.com/category/56/pfblockerng)
-- Documentation: [pfBlockerNG Docs](https://docs.netgate.com/pfsense/en/latest/packages/pfblocker.html)
-
----
-
-**Last Updated:** November 2025
-
-**Tested On:** pfSense 2.8.1
-
-
-
+**Last Updated:** February 2026

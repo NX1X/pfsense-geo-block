@@ -1,71 +1,94 @@
 #!/bin/sh
-# pfSense Country Geo-Blocking Update Script with Error Handling
+# pfSense Country Geo-Blocking Update Script — IPv4 + IPv6
 
-BASE_URL="https://www.ipdeny.com/ipblocks/data/aggregated"
-OUTFILE="/var/db/pfblockerng/original/all_countries_combined.txt"
-TMPFILE="/tmp/all_countries_temp.txt"
+BASE_URL_V4="https://www.ipdeny.com/ipblocks/data/aggregated"
+BASE_URL_V6="https://www.ipdeny.com/ipv6/ipaddresses/aggregated"
+OUTFILE_V4="/var/db/pfblockerng/original/all_countries_v4_combined.txt"
+OUTFILE_V6="/var/db/pfblockerng/original/all_countries_v6_combined.txt"
+TMPFILE_V4="/tmp/all_countries_v4_temp.txt"
+TMPFILE_V6="/tmp/all_countries_v6_temp.txt"
 LOGFILE="/var/log/pfblockerng/all_countries.log"
-WEBHOOK="YOUR_WEBHOOK_URL_HERE"  # Optional: Add Slack webhook URL
 
-# Clear temp file
-> $TMPFILE
+# Load shared Slack webhook config
+WEBHOOK_CONF="/usr/local/etc/geoblock-webhook.conf"
+WEBHOOK=""
+if [ -f "$WEBHOOK_CONF" ]; then
+  . "$WEBHOOK_CONF"
+fi
 
-# Log start
-echo "$(date): Starting update..." >> $LOGFILE
+mkdir -p /var/db/pfblockerng/original
+echo "$(date): Starting IPv4 + IPv6 update..." >> $LOGFILE
 
-# Download with error checking
-curl -s "$BASE_URL/MD5SUM" | awk '{print $2}' | grep '\.zone$' | \
+MANIFEST="MD5SUM"  # DevSkim: ignore DS126858 - remote filename only, not used for crypto
+
+# ── IPv4 ────────────────────────────────────────────────────────────────────
+> $TMPFILE_V4
+curl -s "$BASE_URL_V4/$MANIFEST" | awk '{print $2}' | grep '\.zone$' | \
   while read zonefile; do
-    curl -s "$BASE_URL/$zonefile" >> $TMPFILE
+    curl -s "$BASE_URL_V4/$zonefile" >> $TMPFILE_V4
   done
 
-# Check if download succeeded
-if [ ! -s "$TMPFILE" ]; then
-  ERROR_MSG="❌ pfSense: Country list update FAILED - No data downloaded"
-  echo "$(date): ERROR - Download failed" >> $LOGFILE
-  
-  # Send failure notification
-  if [ ! -z "$WEBHOOK" ]; then
-    curl -X POST "$WEBHOOK" \
-      -H 'Content-Type: application/json' \
-      -d "{\"text\":\"$ERROR_MSG\"}"
-  fi
-  
-  # Don't replace good file with empty file
-  rm -f $TMPFILE
+if [ ! -s "$TMPFILE_V4" ]; then
+  MSG="❌ pfSense: IPv4 country list update FAILED - No data downloaded"
+  echo "$(date): ERROR - IPv4 download failed" >> $LOGFILE
+  [ -n "$WEBHOOK" ] && curl -s -X POST "$WEBHOOK" \
+    -H 'Content-Type: application/json' -d "{\"text\":\"$MSG\"}"
+  rm -f $TMPFILE_V4
   exit 1
 fi
 
-# Verify reasonable IP count (should be >100,000)
-IP_COUNT=$(wc -l < $TMPFILE)
-if [ $IP_COUNT -lt 100000 ]; then
-  ERROR_MSG="❌ pfSense: Country list update FAILED - Only $IP_COUNT IPs (expected >100k)"
-  echo "$(date): ERROR - Incomplete download ($IP_COUNT IPs)" >> $LOGFILE
-  
-  if [ ! -z "$WEBHOOK" ]; then
-    curl -X POST "$WEBHOOK" \
-      -H 'Content-Type: application/json' \
-      -d "{\"text\":\"$ERROR_MSG\"}"
-  fi
-  
-  rm -f $TMPFILE
+V4_COUNT=$(wc -l < $TMPFILE_V4 | tr -d ' ')
+if [ $V4_COUNT -lt 100000 ]; then
+  MSG="❌ pfSense: IPv4 country list update FAILED - Only $V4_COUNT ranges (expected >100k)"
+  echo "$(date): ERROR - Incomplete IPv4 download ($V4_COUNT)" >> $LOGFILE
+  [ -n "$WEBHOOK" ] && curl -s -X POST "$WEBHOOK" \
+    -H 'Content-Type: application/json' -d "{\"text\":\"$MSG\"}"
+  rm -f $TMPFILE_V4
   exit 1
 fi
 
-# Create directory and move file
-mkdir -p /var/db/pfblockerng/original
-mv $TMPFILE $OUTFILE
+mv $TMPFILE_V4 $OUTFILE_V4
+echo "$(date): IPv4 updated - $V4_COUNT ranges" >> $LOGFILE
 
-# Final verification
-FINAL_COUNT=$(wc -l < $OUTFILE)
-echo "$(date): Updated - $FINAL_COUNT IPs" >> $LOGFILE
+# ── IPv6 ────────────────────────────────────────────────────────────────────
+> $TMPFILE_V6
+# Reuse the IPv4 manifest country codes to derive IPv6 zone URLs
+curl -s "$BASE_URL_V4/$MANIFEST" | awk '{print $2}' | grep '\.zone$' | \
+  while read zonefile; do
+    cc="${zonefile%-aggregated.zone}"
+    curl -s "$BASE_URL_V6/${cc}-aggregated.zone" >> $TMPFILE_V6
+  done
 
-# Send success notification
-if [ ! -z "$WEBHOOK" ]; then
-  curl -X POST "$WEBHOOK" \
+if [ ! -s "$TMPFILE_V6" ]; then
+  MSG="❌ pfSense: IPv6 country list update FAILED - No data downloaded"
+  echo "$(date): ERROR - IPv6 download failed" >> $LOGFILE
+  [ -n "$WEBHOOK" ] && curl -s -X POST "$WEBHOOK" \
+    -H 'Content-Type: application/json' -d "{\"text\":\"$MSG\"}"
+  rm -f $TMPFILE_V6
+  # Don't exit — IPv4 already succeeded
+else
+  V6_COUNT=$(wc -l < $TMPFILE_V6 | tr -d ' ')
+  if [ $V6_COUNT -lt 5000 ]; then
+    MSG="❌ pfSense: IPv6 country list update FAILED - Only $V6_COUNT ranges (expected >5k)"
+    echo "$(date): ERROR - Incomplete IPv6 download ($V6_COUNT)" >> $LOGFILE
+    [ -n "$WEBHOOK" ] && curl -s -X POST "$WEBHOOK" \
+      -H 'Content-Type: application/json' -d "{\"text\":\"$MSG\"}"
+    rm -f $TMPFILE_V6
+  else
+    mv $TMPFILE_V6 $OUTFILE_V6
+    echo "$(date): IPv6 updated - $V6_COUNT ranges" >> $LOGFILE
+  fi
+fi
+
+# ── Notify ───────────────────────────────────────────────────────────────────
+V6_FINAL=0
+[ -f "$OUTFILE_V6" ] && V6_FINAL=$(wc -l < $OUTFILE_V6 | tr -d ' ')
+
+if [ -n "$WEBHOOK" ]; then
+  curl -s -X POST "$WEBHOOK" \
     -H 'Content-Type: application/json' \
-    -d "{\"text\":\"✅ pfSense: Country list updated - $FINAL_COUNT IPs blocked\"}"
+    -d "{\"text\":\"✅ pfSense: Country lists updated — IPv4: $V4_COUNT ranges | IPv6: $V6_FINAL ranges\"}"
 fi
 
-echo "Update complete: $FINAL_COUNT IP ranges"
+echo "$(date): Update complete — v4: $V4_COUNT, v6: $V6_FINAL" >> $LOGFILE
 exit 0
