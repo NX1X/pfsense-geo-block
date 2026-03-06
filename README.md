@@ -5,7 +5,6 @@
 ![Visitors](https://visitor-badge.laobi.icu/badge?page_id=NX1X.pfsense-geo-block)
 
 [![GitHub release](https://img.shields.io/github/v/release/NX1X/pfsense-geo-block)](https://github.com/NX1X/pfsense-geo-block/releases/latest)
-[![GitHub](https://img.shields.io/badge/GitHub-Repository-black)](https://github.com/NX1X/pfsense-geo-block)
 [![Setup Guide](https://img.shields.io/badge/Docs-Setup%20Guide-blue)](GUIDE.md)
 [![Changelog](https://img.shields.io/badge/Docs-Changelog-blue)](CHANGELOG.md)
 [![Blog](https://img.shields.io/badge/Blog-Articles-green)](https://blog.nx1xlab.dev/)
