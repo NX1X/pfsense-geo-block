@@ -15,7 +15,7 @@ Full installation and configuration guide for pfSense Country Geo-Blocking.
 7. [Cron Jobs](#cron-jobs)
 8. [Understanding the Daily Report](#understanding-the-daily-report)
 9. [Whitelist a Country](#whitelist-a-country)
-10. [Troubleshooting](#troubleshooting)
+10. [Troubleshooting](TROUBLESHOOTING.md)
 
 ---
 
@@ -25,6 +25,8 @@ Full installation and configuration guide for pfSense Country Geo-Blocking.
 - pfBlockerNG-devel installed (`System > Package Manager`)
 - Internet connectivity for updates
 - Slack workspace (optional, for notifications)
+- **Firewall Maximum Table Entries set to `600000`** — the combined country + threat intel lists exceed the default 400,000 limit. Set this before loading pfBlockerNG rules:
+  **System > Advanced > Firewall & NAT > Firewall Maximum Table Entries → `600000`**
 
 ---
 
@@ -204,7 +206,7 @@ Click the `+` icon next to each feed to import it, then set **Action: Deny Both*
 | Hour | `7` |
 | Day / Month / Weekday | `*` |
 | User | `root` |
-| Command | `/root/scripts/update-all-countries.sh` |
+| Command | `sh /root/scripts/update-all-countries.sh` |
 
 **Job 2 — Daily Report (8 AM daily):**
 
@@ -214,7 +216,7 @@ Click the `+` icon next to each feed to import it, then set **Action: Deny Both*
 | Hour | `8` |
 | Day / Month / Weekday | `*` |
 | User | `root` |
-| Command | `/root/scripts/geo-block-report.sh` |
+| Command | `sh /root/scripts/geo-block-report.sh` |
 
 ---
 
@@ -275,47 +277,7 @@ In pfBlockerNG, create a separate rule for the country with **Action: Permit Inb
 
 ## Troubleshooting
 
-### Report shows "No blocked connections"
-
-Check that the firewall log has block entries:
-
-```bash
-grep ',block,' /var/log/filter.log | wc -l
-```
-
-If this returns 0, enable logging in your pfBlockerNG rule:
-**Firewall > pfBlockerNG > IP > Edit rule > Logging: Enabled**
-
-### Update script fails with "Syntax error: end of file"
-
-Windows CRLF line endings. Fix with:
-
-```bash
-tr -d '\r' < /root/scripts/update-all-countries.sh > /tmp/_lf.sh && \
-  mv /tmp/_lf.sh /root/scripts/update-all-countries.sh && \
-  chmod 750 /root/scripts/update-all-countries.sh
-```
-
-### pfBlockerNG shows "No IPs found"
-
-Verify the file exists and has content:
-
-```bash
-ls -lh /var/db/pfblockerng/original/all_countries_v4_combined.txt
-head -3 /var/db/pfblockerng/original/all_countries_v4_combined.txt
-```
-
-### Feeds show 0 Final IPs
-
-Normal — those IPs were already covered by the country block list and were deduplicated. The feeds add value when you whitelist specific countries.
-
-### Country lookup shows blank
-
-The GeoIP database path may differ. Check:
-
-```bash
-find /var/db/GeoIP /usr/local/share/GeoIP -name '*.mmdb' 2>/dev/null
-```
+See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for a full list of issues and fixes.
 
 ---
 

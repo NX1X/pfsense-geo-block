@@ -2,6 +2,9 @@
 # pfSense Geo-Block Daily Summary Report to Slack
 # Parses pfSense filter logs and sends per-interface/direction summary with country info
 # Schedule via cron (e.g., daily at 8 AM)
+# Part of NXTools Collection — https://nx1xlab.dev/nxtools
+# Author: NX1X — https://nx1xlab.dev
+# Source: https://github.com/NX1X/pfsense-geo-block
 
 # Load shared Slack webhook config
 WEBHOOK_CONF="/usr/local/etc/geoblock-webhook.conf"

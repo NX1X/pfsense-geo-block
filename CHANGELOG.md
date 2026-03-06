@@ -4,6 +4,21 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [2.0.1] — 2026-03-06
+
+### Fixed
+
+- **Cron silent failure on CRLF scripts** — cron commands now use `sh /root/scripts/...` explicitly, bypassing the shebang. Previously, Windows CRLF line endings caused `#!/bin/sh\r` to fail silently at boot with no log output
+- **pf table memory error at boot** — documented and set Firewall Maximum Table Entries to `600000`. The default limit caused `Cannot allocate memory` errors when loading the combined country + threat intel tables at boot, as pf temporarily holds old and new table data simultaneously during reloads
+
+### Changed
+
+- Troubleshooting content moved to a dedicated `TROUBLESHOOTING.md` with its own TOC; `GUIDE.md` links to it
+- CRLF troubleshooting entry updated to cover both scripts and explain the shebang failure root cause
+- Requirements updated: tested on pfSense 2.8.0; added table entries limit prerequisite
+
+---
+
 ## [2.0.0] — 2026-02-28
 
 ### Added

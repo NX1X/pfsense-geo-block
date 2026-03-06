@@ -1,5 +1,8 @@
 #!/bin/sh
 # pfSense Country Geo-Blocking Update Script — IPv4 + IPv6
+# Part of NXTools Collection — https://nx1xlab.dev/nxtools
+# Author: NX1X — https://nx1xlab.dev
+# Source: https://github.com/NX1X/pfsense-geo-block
 
 BASE_URL_V4="https://www.ipdeny.com/ipblocks/data/aggregated"
 BASE_URL_V6="https://www.ipdeny.com/ipv6/ipaddresses/aggregated"

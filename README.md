@@ -1,7 +1,10 @@
 # pfSense Country-Based Geo-Blocking with pfBlockerNG
 
+> Part of the **[NXTools Collection](https://nx1xlab.dev/nxtools)** by [NX1X](https://nx1xlab.dev)
+
 ![Visitors](https://visitor-badge.laobi.icu/badge?page_id=NX1X.pfsense-geo-block)
 
+[![GitHub release](https://img.shields.io/github/v/release/NX1X/pfsense-geo-block)](https://github.com/NX1X/pfsense-geo-block/releases/latest)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-black)](https://github.com/NX1X/pfsense-geo-block)
 [![Setup Guide](https://img.shields.io/badge/Docs-Setup%20Guide-blue)](GUIDE.md)
 [![Changelog](https://img.shields.io/badge/Docs-Changelog-blue)](CHANGELOG.md)
@@ -47,13 +50,14 @@ sh /root/scripts/update-all-countries.sh
 # 4. Configure pfBlockerNG — see GUIDE.md
 
 # 5. Set up cron jobs (System > Cron in pfSense UI)
-#    7 AM → /root/scripts/update-all-countries.sh
-#    8 AM → /root/scripts/geo-block-report.sh
+#    7 AM → sh /root/scripts/update-all-countries.sh
+#    8 AM → sh /root/scripts/geo-block-report.sh
 ```
 
 ## Documentation
 
-- **[Setup Guide](GUIDE.md)** — full installation, pfBlockerNG IPv4/IPv6 rules, threat feeds, cron setup, troubleshooting
+- **[Setup Guide](GUIDE.md)** — full installation, pfBlockerNG IPv4/IPv6 rules, threat feeds, cron setup
+- **[Troubleshooting](TROUBLESHOOTING.md)** — common issues and fixes
 - **[Changelog](CHANGELOG.md)** — version history
 
 ## Requirements
@@ -61,6 +65,7 @@ sh /root/scripts/update-all-countries.sh
 - pfSense 2.7+ (tested on 2.8.0)
 - pfBlockerNG-devel installed
 - Internet connectivity for updates
+- Firewall Maximum Table Entries set to `600000` (System > Advanced > Firewall & NAT)
 
 ## License
 
@@ -72,4 +77,6 @@ MIT — Free to use and modify
 - pfBlockerNG team
 - MaxMind for GeoLite2 database
 
-**Last Updated:** February 2026
+---
+
+**Last Updated:** March 2026
