@@ -132,6 +132,7 @@ IFACE_DIRS=$(awk -F',' '{print $5 "|" $8}' "$TMPFILE" | sort | uniq -c | sort -r
 # Awk snippet shared across sections: outputs the "effective" IP for geo-lookup.
 # If source IP is private/LAN, use destination IP (what they're connecting to).
 # If source IP is public, use source IP (the attacker).
+# shellcheck disable=SC2016  # $i/$NF are awk variables, not shell — single quotes are correct
 AWK_EFFECTIVE_IP='
 function is_private(ip,    p, n, o1, o2) {
   n = split(ip, p, ".")
