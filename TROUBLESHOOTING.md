@@ -20,11 +20,22 @@ If `geo_report.log` has no entries for expected run times, the script likely has
 
 ```bash
 for f in update-all-countries.sh geo-block-report.sh; do
-  tr -d '\r' < /root/scripts/$f > /tmp/_lf.sh && mv /tmp/_lf.sh /root/scripts/$f && chmod 750 /root/scripts/$f
+  sed -i '' 's/\r//' /root/scripts/$f
 done
 ```
 
-To prevent silent failures, use `sh` explicitly in cron commands — this bypasses the shebang so the script at least starts and logs even if CRLF sneaks back in. Both cron commands in the setup guide already use this form:
+**Prevent this permanently — use binary transfer when copying scripts to pfSense:**
+
+- **Windows PowerShell / Command Prompt (recommended):** Use the built-in `scp` — it always transfers in binary mode:
+  ```powershell
+  scp update-all-countries.sh geo-block-report.sh admin@pfsense:/root/scripts/
+  ```
+- **WinSCP:** Options → Preferences → Transfer → Default → Transfer mode → **Binary**
+- **Any other tool:** ensure it is set to binary / raw mode, not "text" or "ASCII" mode
+
+> The repository's `.gitattributes` enforces LF line endings in git, so files checked out locally are always correct. CRLF only appears if your transfer tool converts line endings during upload.
+
+To prevent silent failures in cron regardless, use `sh` explicitly — this bypasses the shebang so the script starts and logs even if CRLF sneaks in. Both cron commands in the setup guide already use this form:
 
 ```
 sh /root/scripts/update-all-countries.sh
@@ -35,7 +46,7 @@ sh /root/scripts/geo-block-report.sh
 
 ### Update script fails with "Syntax error: end of file"
 
-Same CRLF issue as above. Run the fix for `update-all-countries.sh`.
+Same CRLF issue as above. Run the fix and switch to binary transfer mode.
 
 ---
 

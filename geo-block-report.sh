@@ -6,28 +6,35 @@
 # Author: NX1X — https://nx1xlab.dev
 # Source: https://github.com/NX1X/pfsense-geo-block
 
-# Load shared Slack webhook config
+# Load shared Slack webhook config — parse only; never source the file
 WEBHOOK_CONF="/usr/local/etc/geoblock-webhook.conf"
 WEBHOOK=""
 if [ -f "$WEBHOOK_CONF" ]; then
-  . "$WEBHOOK_CONF"
+  WEBHOOK=$(grep -E '^WEBHOOK=' "$WEBHOOK_CONF" | head -1 | cut -d= -f2- | tr -d "\"'")
+  case "$WEBHOOK" in
+    https://*) ;;
+    *) WEBHOOK="" ;;
+  esac
 fi
 LOGFILE="/var/log/filter.log"
 REPORT_LOG="/var/log/pfblockerng/geo_report.log"
 HOURS=24
 
+TMPFILE=$(mktemp /tmp/geo_block_report.XXXXXX)
+IP_COUNTRY_FILE=$(mktemp /tmp/geo_ip_countries.XXXXXX)
+REPORT_TMPFILE=$(mktemp /tmp/geo_report_msg.XXXXXX)
+trap 'rm -f "$TMPFILE" "$IP_COUNTRY_FILE" "$REPORT_TMPFILE"' EXIT INT TERM
+
 echo "$(date): Generating geo-block report..." >> "$REPORT_LOG"
 
 NOW=$(date +%s)
 CUTOFF=$((NOW - HOURS * 3600))
-TMPFILE="/tmp/geo_block_report_tmp.txt"
-> "$TMPFILE"
 
 # Parse log (RFC 5424 ISO 8601 timestamps, pfSense 2.7+)
 # Filterlog CSV fields (comma-split): $5=interface, $7=action, $8=direction
 if [ -f "$LOGFILE" ]; then
   grep ',block,' "$LOGFILE" 2>/dev/null | while IFS= read -r line; do
-    # Field 2 is the ISO 8601 timestamp: 2026-02-27T21:42:01.346878+02:00
+    # Field 2 is the ISO 8601 timestamp: 2026-02-27T21:42:01.346868+02:00
     LOG_TS=$(echo "$line" | awk '{print $2}' | cut -c1-19)
     LOG_EPOCH=$(date -j -f "%Y-%m-%dT%H:%M:%S" "$LOG_TS" +%s 2>/dev/null)
     if [ -n "$LOG_EPOCH" ] && [ "$LOG_EPOCH" -ge "$CUTOFF" ]; then
@@ -41,11 +48,11 @@ TOTAL_BLOCKS=$(wc -l < "$TMPFILE" | tr -d ' ')
 if [ "$TOTAL_BLOCKS" -eq 0 ]; then
   echo "$(date): No blocked connections in the last ${HOURS}h" >> "$REPORT_LOG"
   if [ -n "$WEBHOOK" ]; then
+    MSG=$(printf '📊 *pfSense Geo-Block Daily Report*\nNo blocked connections in the last %d hours.' "$HOURS")
     curl -s -X POST "$WEBHOOK" \
       -H 'Content-Type: application/json' \
-      -d "{\"text\":\"📊 *pfSense Geo-Block Daily Report*\nNo blocked connections in the last ${HOURS} hours.\"}"
+      -d "$(jq -n --arg t "$MSG" '{"text":$t}')"
   fi
-  rm -f "$TMPFILE"
   exit 0
 fi
 
@@ -59,7 +66,6 @@ fi
 
 # Pre-compute IP -> country mapping for both source AND destination IPs
 # (destination is needed when source is a private/LAN IP)
-IP_COUNTRY_FILE="/tmp/geo_ip_countries.txt"
 if [ -n "$GEOIP_DB" ]; then
   awk -F',' '{
     count = 0
@@ -70,14 +76,12 @@ if [ -n "$GEOIP_DB" ]; then
         if(count == 2) break
       }
     }
-  }' "$TMPFILE" | sort -u | while read _ip; do
+  }' "$TMPFILE" | sort -u | while IFS= read -r _ip; do
     _country=$(mmdblookup --file "$GEOIP_DB" --ip "$_ip" country names en 2>/dev/null | \
       grep -o '"[^"]*"' | head -1 | tr -d '"')
     [ -z "$_country" ] && _country=""
     printf '%s\t%s\n' "$_ip" "$_country"
   done > "$IP_COUNTRY_FILE"
-else
-  > "$IP_COUNTRY_FILE"
 fi
 
 # Returns 0 (true) if IP is RFC 1918 / CGNAT / loopback / link-local
@@ -102,9 +106,6 @@ format_port() {
     *) echo "$1" ;;
   esac
 }
-
-REPORT_TMPFILE="/tmp/geo_report_msg.txt"
-> "$REPORT_TMPFILE"
 
 UNIQUE_IPS=$(awk -F',' '{
   for(i=1;i<=NF;i++) {
@@ -159,10 +160,14 @@ function is_private(ip,    p, n, o1, o2) {
 }'
 
 # Generate a section for each interface+direction combination
-echo "$IFACE_DIRS" | while IFS='|' read iface direction; do
+echo "$IFACE_DIRS" | while IFS='|' read -r iface direction; do
+  [ -z "$iface" ] && continue
+  # Sanitise both fields — pfSense names are alphanumeric but defend against crafted logs
+  iface=$(printf '%s' "$iface" | tr -cd 'a-zA-Z0-9_-')
+  direction=$(printf '%s' "$direction" | tr -cd 'a-zA-Z0-9_-')
   [ -z "$iface" ] && continue
 
-  SECTION_FILE="/tmp/geo_section_${iface}_${direction}.txt"
+  SECTION_FILE=$(mktemp /tmp/geo_section.XXXXXX)
   awk -F',' -v iface="$iface" -v dir="$direction" \
     '$5 == iface && $8 == dir' "$TMPFILE" > "$SECTION_FILE"
 
@@ -183,7 +188,7 @@ echo "$IFACE_DIRS" | while IFS='|' read iface direction; do
         if($i=="tcp"||$i=="udp"||$i=="icmp"||$i=="igmp") { print $i; break }
       }
     }' "$SECTION_FILE" | sort | uniq -c | sort -rn | \
-    while read _count _proto; do echo "• ${_proto}: ${_count}"; done
+    while read -r _count _proto; do echo "• ${_proto}: ${_count}"; done
     echo ""
 
     # Top destination ports
@@ -201,7 +206,7 @@ echo "$IFACE_DIRS" | while IFS='|' read iface direction; do
         }
       }
     }' "$SECTION_FILE" | sort | uniq -c | sort -rn | head -5 | \
-    while read _count _port; do
+    while read -r _count _port; do
       echo "• $(format_port "$_port") — ${_count} hits"
     done
     echo ""
@@ -211,13 +216,13 @@ echo "$IFACE_DIRS" | while IFS='|' read iface direction; do
     # - public source IP  → country of SOURCE (where the attacker is from)
     echo "🗺️ *Top Countries*"
     awk -F',' "$AWK_EFFECTIVE_IP" "$SECTION_FILE" | sort | uniq -c | \
-    while read _count _ip; do
+    while read -r _count _ip; do
       _country=$(awk -F'\t' -v ip="$_ip" '$1==ip{print $2; exit}' "$IP_COUNTRY_FILE")
       [ -z "$_country" ] && _country="Unknown"
       printf '%s\t%d\n' "$_country" "$_count"
     done | awk -F'\t' '{sum[$1]+=$2} END{for(c in sum) printf "%d\t%s\n", sum[c], c}' | \
     sort -rn | head -5 | \
-    while read _count _country; do
+    while read -r _count _country; do
       echo "• ${_country}: ${_count} blocks"
     done
     echo ""
@@ -230,7 +235,7 @@ echo "$IFACE_DIRS" | while IFS='|' read iface direction; do
         if($i ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) { print $i; break }
       }
     }' "$SECTION_FILE" | sort | uniq -c | sort -rn | head -10 | \
-    while read _count _ip; do
+    while read -r _count _ip; do
       if is_private_ip "$_ip"; then
         echo "• \`${_ip}\` [LAN] — ${_count} blocks"
       else
@@ -273,7 +278,7 @@ function is_private(ip,    p,n,o1,o2) {
     if(port~/^[0-9]+$/&&port+0>0&&port+0<65536) print src "|" port
   }
 }' "$TMPFILE" | sort -u | \
-awk -F'|' '{
+  awk -F'|' '{
   cnt[$1]++
   if(cnt[$1]<=10) pl[$1]=(pl[$1]==""?$2:pl[$1]","$2)
 } END {
@@ -287,7 +292,7 @@ awk -F'|' '{
   if [ -z "$SCANNER_RESULTS" ]; then
     echo "• None detected in the last ${HOURS} hours"
   else
-    echo "$SCANNER_RESULTS" | while read _portcount _ip _ports; do
+    echo "$SCANNER_RESULTS" | while read -r _portcount _ip _ports; do
       _country=$(awk -F'\t' -v ip="$_ip" '$1==ip{print $2; exit}' "$IP_COUNTRY_FILE")
       [ -z "$_country" ] && _country="—"
       echo "• \`${_ip}\` [${_country}] — ${_portcount} ports: ${_ports}"
@@ -296,19 +301,15 @@ awk -F'|' '{
   echo ""
 } >> "$REPORT_TMPFILE"
 
-# Encode newlines for JSON using awk (BSD sed compatible)
-REPORT_TEXT=$(awk '{printf "%s\\n", $0}' "$REPORT_TMPFILE" | sed 's/"/\\"/g')
-
 if [ -n "$WEBHOOK" ]; then
   curl -s -X POST "$WEBHOOK" \
     -H 'Content-Type: application/json' \
-    -d "{\"text\":\"${REPORT_TEXT}\"}"
+    -d "$(jq -Rs '{"text":.}' "$REPORT_TMPFILE")"
   echo "$(date): Report sent (${TOTAL_BLOCKS} blocks, ${UNIQUE_IPS} unique IPs)" >> "$REPORT_LOG"
 else
   echo "$(date): Webhook not configured, printing report:" >> "$REPORT_LOG"
   cat "$REPORT_TMPFILE" >> "$REPORT_LOG"
 fi
 
-rm -f "$TMPFILE" "$REPORT_TMPFILE" "$IP_COUNTRY_FILE"
 echo "$(date): Report complete" >> "$REPORT_LOG"
 exit 0

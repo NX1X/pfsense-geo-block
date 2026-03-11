@@ -61,7 +61,7 @@ sh /root/scripts/update-all-countries.sh
 
 ## Requirements
 
-- pfSense 2.7+ (tested on 2.8.0)
+- pfSense 2.7+ (tested on 2.8.1)
 - pfBlockerNG-devel installed
 - Internet connectivity for updates
 - Firewall Maximum Table Entries set to `600000` (System > Advanced > Firewall & NAT)

@@ -4,6 +4,21 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [2.0.3] — 2026-03-11
+
+### Security
+
+- **Zone filename validation** — manifest parsing now requires filenames to match `^[a-z]{2}-aggregated\.zone$`; previously `grep '\.zone$'` accepted any suffix including path-traversal patterns
+- **JSON payload hardening** — all Slack webhook payloads now built with `jq` instead of manual string interpolation; eliminates backslash/control-character injection that could produce malformed JSON and silent delivery failures
+- **Webhook config no longer sourced** — both scripts now parse `/usr/local/etc/geoblock-webhook.conf` with `grep`+`tr` (strips surrounding quotes, validates `https://` prefix) instead of `. "$WEBHOOK_CONF"`; prevents arbitrary code execution if the file is tampered with
+- **Unpredictable temp files** — all temp paths now use `mktemp` instead of fixed `/tmp/filename` strings, eliminating TOCTOU/symlink attack surface
+- **`--fail` on zone downloads** — `curl` calls that download zone files now use `-f` so HTTP 4xx/5xx responses are rejected rather than silently written into the blocklist
+- **Interface name sanitisation** — `$iface` and `$direction` stripped to `[a-zA-Z0-9_-]` before use in `awk` filters, file paths, and report output
+- **Trap-based temp file cleanup** — `trap '...' EXIT INT TERM` ensures temp files are removed on clean exit, error, or signal; no files left behind if the script is killed mid-run
+- **CI action pinned** — `ludeeus/action-shellcheck` pinned to commit SHA `00cae500` (v2.0.0) instead of `@master` to prevent supply-chain attacks via unreviewed upstream commits
+
+---
+
 ## [2.0.2] — 2026-03-06
 
 ### Added

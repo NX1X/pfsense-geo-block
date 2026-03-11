@@ -46,12 +46,17 @@ curl -o /root/scripts/geo-block-report.sh \
 chmod 750 /root/scripts/*.sh
 ```
 
-> **Note:** If you edit scripts on Windows and SCP them to pfSense, run this after each transfer to strip Windows line endings:
+> **Windows users:** Use `scp` from PowerShell to transfer files — it always uses binary mode and avoids CRLF line-ending corruption:
+> ```powershell
+> scp update-all-countries.sh geo-block-report.sh admin@pfsense:/root/scripts/
+> ```
+> If you used WinSCP in text mode and the scripts fail, strip the CRLF on pfSense:
 > ```bash
 > for f in update-all-countries.sh geo-block-report.sh; do
->   tr -d '\r' < /root/scripts/$f > /tmp/_lf.sh && mv /tmp/_lf.sh /root/scripts/$f && chmod 750 /root/scripts/$f
+>   sed -i '' 's/\r//' /root/scripts/$f
 > done
 > ```
+> See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for full details.
 
 ---
 
@@ -260,13 +265,13 @@ External IPs that probed 4 or more distinct destination ports within 24 hours �
 
 **Option 1 — Exclude from the download script:**
 
-Edit `update-all-countries.sh` and add a `grep -v` filter:
+Edit `update-all-countries.sh` and add a `grep -v` filter after the existing `grep -E`:
 
 ```bash
 # Example: exclude Israel (il) and United States (us)
-curl -s "$BASE_URL_V4/$MANIFEST" | awk '{print $2}' | grep '\.zone$' | \
-  grep -v 'il-aggregated\|us-aggregated' | \
-  while read zonefile; do
+curl -sf "$BASE_URL_V4/$MANIFEST" | awk '{print $2}' | grep -E '^[a-z]{2}-aggregated\.zone$' | \
+  grep -v '^il-aggregated\|^us-aggregated' | \
+  while IFS= read -r zonefile; do
 ```
 
 **Option 2 — pfBlockerNG Permit rule:**

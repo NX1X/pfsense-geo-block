@@ -23,3 +23,6 @@ desktop.ini
 # Sensitive — never commit the webhook config
 geoblock-webhook.conf
 *.conf
+
+# Local security review — not for public repo
+security-review.md
