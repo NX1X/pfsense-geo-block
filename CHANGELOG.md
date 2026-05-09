@@ -4,6 +4,14 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [2.0.4] — 2026-05-09
+
+### Changed
+
+- **License changed from MIT to Apache 2.0** — applies retroactively to all past, current, and future versions of this project. All releases (v1.0.0+) are now licensed under the Apache License, Version 2.0
+
+---
+
 ## [2.0.3] — 2026-03-11
 
 ### Security

@@ -68,7 +68,7 @@ sh /root/scripts/update-all-countries.sh
 
 ## License
 
-MIT — Free to use and modify
+Apache 2.0 — Free to use and modify. See [LICENSE](LICENSE) for details.
 
 ## Credits
 
